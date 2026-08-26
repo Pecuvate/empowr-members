@@ -56,6 +56,33 @@ export async function getOrCreateStripeCustomer(
   return customer.id;
 }
 
+/**
+ * The Customer Portal configuration belonging to THIS app.
+ *
+ * The Empowr CIC Stripe account is shared with Empowr Heroes, which has its
+ * own portal configuration — it is the account default, it is branded
+ * "Empowr Heroes", and it deliberately allows plan switching so donors can
+ * change tier. Members must not use it: a member would see Heroes branding
+ * and be offered tier switches, and editing that config to suit Members
+ * would silently remove Heroes donors' ability to change tier.
+ *
+ * So Members has its own configuration and passes it explicitly. Resolved by
+ * `metadata.app` rather than a stored id for the same reason Prices are
+ * resolved by lookup_key: the id differs between test and live, and one
+ * shared database (and one codebase) serves both.
+ *
+ * Returns null rather than falling back to the account default — falling back
+ * would silently open Heroes' portal to a member, which is worse than a
+ * visible failure.
+ */
+export async function membersPortalConfigurationId(): Promise<string | null> {
+  const configurations = await getStripe().billingPortal.configurations.list({
+    active: true,
+    limit: 100,
+  });
+  return configurations.data.find((c) => c.metadata?.app === "members")?.id ?? null;
+}
+
 /** Resolve a Price by its lookup_key in whichever Stripe mode this app's key
  *  is in. Deliberately not a stored Price ID: production runs live Stripe and
  *  previews/local run test, but they share one database, so a stored ID is

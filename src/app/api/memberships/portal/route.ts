@@ -13,7 +13,7 @@
 // entitlement consequences this app does not model yet.
 import { NextResponse } from "next/server";
 import { getAuthedAccount } from "@/lib/auth";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, membersPortalConfigurationId } from "@/lib/stripe";
 import { requestOrigin } from "@/lib/request-origin";
 
 export async function POST(request: Request) {
@@ -35,8 +35,25 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Members' OWN portal configuration, never the account default — that one
+    // belongs to Empowr Heroes (branded "Empowr Heroes", plan switching on).
+    // Fail rather than fall back: opening Heroes' portal to a member is worse
+    // than an error, and it would be invisible until someone complained.
+    const configuration = await membersPortalConfigurationId();
+    if (!configuration) {
+      console.error(
+        "portal: no Stripe portal configuration found with metadata.app=members — " +
+          "create one for this Stripe mode before the portal can be opened"
+      );
+      return NextResponse.json(
+        { error: "The billing portal is not configured yet" },
+        { status: 503 }
+      );
+    }
+
     const session = await getStripe().billingPortal.sessions.create({
       customer: customerId,
+      configuration,
       return_url: `${requestOrigin(request)}/account`,
     });
     return NextResponse.json({ portal_url: session.url });
