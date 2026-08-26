@@ -15,8 +15,13 @@ import { checkWaivers, recordWaiverConsent } from "@/lib/waivers";
 import { recordDepartureConsents } from "@/lib/departure-consent";
 import { isAgeEligible, ageOn } from "@/lib/age";
 import { PENDING_BOOKING_EXPIRY_MINUTES } from "@/lib/business-rules";
-import { getStripe, HOLD_GRACE_MINUTES } from "@/lib/stripe";
+import {
+  getStripe,
+  getOrCreateStripeCustomer,
+  HOLD_GRACE_MINUTES,
+} from "@/lib/stripe";
 import { formatOccurrence, formatDate } from "@/lib/format";
+import { requestOrigin } from "@/lib/request-origin";
 import type { Booking, Participant } from "@/lib/types";
 
 type TargetRow = {
@@ -30,19 +35,6 @@ type TargetRow = {
   };
 };
 
-/** Origin for Stripe redirect URLs — proxy-aware (Netlify), http for
- *  local dev hosts. */
-function requestOrigin(request: Request): string {
-  const host =
-    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  if (!host) return new URL(request.url).origin;
-  const proto =
-    request.headers.get("x-forwarded-proto") ??
-    (host.startsWith("localhost") || host.startsWith("127.")
-      ? "http"
-      : "https");
-  return `${proto}://${host}`;
-}
 
 export async function POST(request: Request) {
   const authed = await getAuthedAccount();
@@ -272,21 +264,11 @@ export async function POST(request: Request) {
   try {
     const stripe = getStripe();
 
-    // One Stripe customer per account — created on first payment, reused
-    // for every later Checkout (and Billing subscriptions in Phase 2).
-    let customerId = authed.account.stripe_customer_id;
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: authed.user.email ?? undefined,
-        name: authed.account.name,
-        metadata: { mem_account_id: authed.account.id },
-      });
-      customerId = customer.id;
-      await service
-        .from("mem_accounts")
-        .update({ stripe_customer_id: customerId })
-        .eq("id", authed.account.id);
-    }
+    // One Stripe customer per account — created on first payment, reused for
+    // every later Checkout and for Phase 2 Billing subscriptions. Lives in
+    // lib/stripe.ts so the subscribe route shares this exact path rather than
+    // growing a second one.
+    const customerId = await getOrCreateStripeCustomer(service, authed);
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",

@@ -9,6 +9,11 @@ import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendBookingConfirmationForSession } from "@/lib/notifications";
+import {
+  membersSubscriptionMeta,
+  toMembershipStatus,
+  currentPeriodEnd,
+} from "@/lib/stripe-subscription";
 
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -99,6 +104,58 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Retry" }, { status: 500 });
       }
     }
+  }
+
+  // Subscription lifecycle (Phase 2 Step 3).
+  //
+  // OWNERSHIP FIRST. This Stripe account is shared with Empowr Heroes and
+  // Stripe delivers every subscribed event type to every endpoint on the
+  // account — an event arriving here is only "some event on the Empowr CIC
+  // account" until proven otherwise. Heroes' donations are subscriptions too.
+  // membersSubscriptionMeta() is a positive check against metadata this app
+  // stamps itself; anything unrecognised is ignored, never assumed to be ours.
+  if (
+    event.type === "customer.subscription.created" ||
+    event.type === "customer.subscription.updated" ||
+    event.type === "customer.subscription.deleted"
+  ) {
+    const subscription = event.data.object;
+    const meta = membersSubscriptionMeta(subscription);
+    if (!meta) {
+      console.log(
+        `[webhook] Ignoring ${event.type} ${subscription.id} — not a Members subscription`
+      );
+      return NextResponse.json({ received: true });
+    }
+
+    const service = createServiceClient();
+    const status =
+      event.type === "customer.subscription.deleted"
+        ? "cancelled"
+        : toMembershipStatus(subscription.status);
+
+    // Upsert on the Stripe subscription id: `created` inserts, later events
+    // update the same row, and a replay is a no-op rather than a duplicate.
+    // Keyed on stripe_subscription_id rather than (account, plan) so a member
+    // who cancels and later resubscribes gets a new row instead of silently
+    // reviving the old one.
+    const { error } = await service.from("mem_memberships").upsert(
+      {
+        account_id: meta.accountId,
+        plan_id: meta.planId,
+        stripe_subscription_id: subscription.id,
+        status,
+        current_period_end: currentPeriodEnd(subscription),
+      },
+      { onConflict: "stripe_subscription_id" }
+    );
+    if (error) {
+      console.error("[webhook] membership sync failed", subscription.id, error);
+      return NextResponse.json({ error: "Retry" }, { status: 500 });
+    }
+    console.log(
+      `[webhook] Membership ${subscription.id} → ${status} (account ${meta.accountId})`
+    );
   }
 
   return NextResponse.json({ received: true });

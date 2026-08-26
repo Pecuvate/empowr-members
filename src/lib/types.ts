@@ -1,5 +1,8 @@
-// Row types for the mem_ tables this app reads. Keep in sync with
-// src/supabase/migrations/ — extend as later phases touch more tables.
+// Row types for the mem_ tables this app reads. Keep in sync with the schema
+// of record at `Empowr CIC/supabase/migrations/` — three apps share this
+// database, so migrations left this repo on 2026-08-06 and are generated from
+// the Supabase migration ledger by dump-ledger.mjs. Do not re-create
+// src/supabase/ here. Extend as later phases touch more tables.
 
 export type Account = {
   id: string;
@@ -34,6 +37,37 @@ export type Booking = {
   stripe_checkout_session_id: string | null;
   expires_at: string | null;
   cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MembershipStatus = "active" | "past_due" | "cancelled";
+
+/** A paid Subscription to ONE session — not a sitewide plan. The free
+ *  "Empowr Member" account is a separate concept and is not a row here.
+ *  Entitlements are per-offering (mem_plan_entitlements.offering_id). */
+export type MembershipPlan = {
+  id: string;
+  name: string;
+  price_pence: number;
+  /** Stable Stripe Price lookup_key, identical in test and live mode. The
+   *  authoritative reference — stripe_price_id is superseded and held NULL
+   *  by a CHECK constraint, because a Price ID is mode-specific and this
+   *  database is shared by production (live) and previews/local (test). */
+  stripe_lookup_key: string | null;
+  stripe_price_id: null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Membership = {
+  id: string;
+  account_id: string;
+  plan_id: string;
+  stripe_subscription_id: string | null;
+  status: MembershipStatus;
+  current_period_end: string | null;
   created_at: string;
   updated_at: string;
 };

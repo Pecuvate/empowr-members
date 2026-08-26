@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "verify:subscriptions": "node --test ../ops/scripts/verify-subscription-helpers.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
