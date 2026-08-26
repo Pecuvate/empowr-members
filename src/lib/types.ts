@@ -64,12 +64,34 @@ export type MembershipPlan = {
 export type Membership = {
   id: string;
   account_id: string;
+  /** The ONE named skater this Subscription covers — per participant, not
+   *  per household (Empowr, 2026-08-26). Two children in the same slot need
+   *  two Subscriptions. Nullable only because the column was added after the
+   *  table existed; every row this app writes sets it. */
+  participant_id: string | null;
   plan_id: string;
   stripe_subscription_id: string | null;
   status: MembershipStatus;
   current_period_end: string | null;
   created_at: string;
   updated_at: string;
+};
+
+/** A weekly slot: a specific day and time. NULL weekday+time on an
+ *  entitlement means "every slot of this offering", which is correct for
+ *  offerings that run once a week and keeps them immune to a time change.
+ *  Set explicitly only where an offering has more than one subscribable slot
+ *  — today that is Sk8 Skool for Kidz (Mondays 16:00, Wednesdays 17:00). */
+export type PlanEntitlement = {
+  id: string;
+  plan_id: string;
+  offering_id: string | null;
+  offering_type: string | null;
+  sessions_per_period: number | null;
+  /** ISO day of week, 1=Monday .. 7=Sunday. */
+  weekday: number | null;
+  /** Europe/London wall-clock start time, e.g. "16:00:00". */
+  starts_at_local: string | null;
 };
 
 export type Participant = {

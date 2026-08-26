@@ -10,21 +10,31 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
 import { resolvePriceIdByLookupKey } from "@/lib/stripe";
+import { slotCoversOccurrence, type EntitledSlot } from "@/lib/slot-matching";
 import type { MembershipPlan, Membership } from "@/lib/types";
 
-/** A plan plus the offering it entitles. One entitlement row per plan today;
- *  the schema allows more, which is why this returns an array of offering ids. */
+export type { EntitledSlot };
+
+/** A plan plus the slots it entitles. A Subscription is to ONE WEEKLY SLOT —
+ *  a specific day and time — not to a whole offering (Empowr, 2026-08-26).
+ *  Sk8 Skool for Kidz is £30 per slot, so a child attending both Monday and
+ *  Wednesday needs two Subscriptions. Matching lives in the pure, testable
+ *  lib/slot-matching.ts because of the BST trap documented there. */
 export type PlanWithEntitlements = MembershipPlan & {
-  offering_ids: string[];
+  slots: EntitledSlot[];
 };
 
-type EntitlementRow = { offering_id: string | null };
+type EntitlementRow = {
+  offering_id: string | null;
+  weekday: number | null;
+  starts_at_local: string | null;
+};
 
 export async function listActivePlans(): Promise<PlanWithEntitlements[]> {
   const service = createServiceClient();
   const { data, error } = await service
     .from("mem_membership_plans")
-    .select("*, mem_plan_entitlements(offering_id)")
+    .select("*, mem_plan_entitlements(offering_id, weekday, starts_at_local)")
     .eq("active", true)
     .order("price_pence");
   if (error) throw error;
@@ -35,20 +45,25 @@ export async function listActivePlans(): Promise<PlanWithEntitlements[]> {
     };
     return {
       ...plan,
-      offering_ids: (entitlements ?? [])
-        .map((e) => e.offering_id)
-        .filter((id): id is string => id !== null),
+      slots: (entitlements ?? [])
+        .filter((e): e is EntitlementRow & { offering_id: string } => e.offering_id !== null)
+        .map((e) => ({
+          offering_id: e.offering_id,
+          weekday: e.weekday,
+          starts_at_local: e.starts_at_local,
+        })),
     };
   });
 }
 
-/** The active plan for one offering, or null if that session has no
- *  Subscription option (courses and camps never do). */
-export async function planForOffering(
-  offeringId: string
-): Promise<PlanWithEntitlements | null> {
+/** Every active plan whose slots include this occurrence. Usually zero or
+ *  one; an offering with two slots (Kidz) yields one per matching day. */
+export async function plansForOccurrence(occurrence: {
+  offering_id: string;
+  starts_at: string;
+}): Promise<PlanWithEntitlements[]> {
   const plans = await listActivePlans();
-  return plans.find((p) => p.offering_ids.includes(offeringId)) ?? null;
+  return plans.filter((p) => p.slots.some((s) => slotCoversOccurrence(s, occurrence)));
 }
 
 /**

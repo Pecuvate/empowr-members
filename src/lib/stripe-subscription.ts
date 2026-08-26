@@ -27,6 +27,10 @@ import type { MembershipStatus } from "@/lib/types";
 export type MembersSubscriptionMeta = {
   accountId: string;
   planId: string;
+  /** The one named skater covered. Per participant, not per household
+   *  (Empowr, 2026-08-26). Required — a Subscription that does not name a
+   *  participant cannot be honoured at the door, so it is not ours. */
+  participantId: string;
 };
 
 type MetadataBag = Record<string, string | undefined> | null | undefined;
@@ -46,8 +50,9 @@ export function membersSubscriptionMeta(
   if (!meta || meta.app !== "members") return null;
   const accountId = meta.mem_account_id;
   const planId = meta.mem_plan_id;
-  if (!accountId || !planId) return null;
-  return { accountId, planId };
+  const participantId = meta.mem_participant_id;
+  if (!accountId || !planId || !participantId) return null;
+  return { accountId, planId, participantId };
 }
 
 /**

@@ -19,13 +19,23 @@ export async function POST(request: Request) {
   }
 
   let planId: unknown;
+  let participantId: unknown;
   try {
-    ({ plan_id: planId } = await request.json());
+    ({ plan_id: planId, participant_id: participantId } = await request.json());
   } catch {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
   if (typeof planId !== "string" || !planId) {
     return NextResponse.json({ error: "plan_id is required" }, { status: 400 });
+  }
+  // A Subscription covers one named skater, not a household (Empowr,
+  // 2026-08-26) — two children in the same slot need two Subscriptions. A
+  // subscription with no participant could not be honoured at the door.
+  if (typeof participantId !== "string" || !participantId) {
+    return NextResponse.json(
+      { error: "participant_id is required" },
+      { status: 400 }
+    );
   }
 
   // Resolve through listActivePlans rather than a direct row read, so an
@@ -40,12 +50,31 @@ export async function POST(request: Request) {
 
   const service = createServiceClient();
 
-  // One active subscription per plan per account. Stripe would happily create
-  // a second and bill for both.
+  // The participant must belong to the signed-in account. Without this, a
+  // valid plan_id plus someone else's participant_id would subscribe a
+  // stranger's child — the same ownership check the booking flow makes.
+  const { data: participant, error: participantError } = await service
+    .from("mem_participants")
+    .select("id, name")
+    .eq("id", participantId)
+    .eq("account_id", authed.account.id)
+    .maybeSingle();
+  if (participantError) {
+    console.error("subscribe: participant lookup failed", participantError);
+    return NextResponse.json({ error: "Could not start checkout" }, { status: 500 });
+  }
+  if (!participant) {
+    return NextResponse.json({ error: "Participant not found" }, { status: 404 });
+  }
+
+  // One active subscription per plan PER PARTICIPANT. Scoped to the
+  // participant rather than the account on purpose: a household with two
+  // children in the same slot legitimately needs two Subscriptions, so an
+  // account-level check would wrongly block the second.
   const { data: existing, error: existingError } = await service
     .from("mem_memberships")
     .select("id, status")
-    .eq("account_id", authed.account.id)
+    .eq("participant_id", participantId)
     .eq("plan_id", plan.id)
     .in("status", ["active", "past_due"]);
   if (existingError) {
@@ -54,7 +83,7 @@ export async function POST(request: Request) {
   }
   if (existing && existing.length > 0) {
     return NextResponse.json(
-      { error: "You already have a subscription to this session" },
+      { error: `${participant.name} already has a subscription to this session` },
       { status: 409 }
     );
   }
@@ -76,12 +105,18 @@ export async function POST(request: Request) {
       // empty, which is exactly why its subscriptions carry no marker and it
       // has to identify its objects structurally instead. Do not remove this:
       // the shared Stripe account fans every event out to both apps.
-      metadata: { ...APP_MARKER, mem_plan_id: plan.id, mem_account_id: authed.account.id },
+      metadata: {
+        ...APP_MARKER,
+        mem_plan_id: plan.id,
+        mem_account_id: authed.account.id,
+        mem_participant_id: participant.id,
+      },
       subscription_data: {
         metadata: {
           ...APP_MARKER,
           mem_plan_id: plan.id,
           mem_account_id: authed.account.id,
+          mem_participant_id: participant.id,
         },
       },
       success_url: `${origin}/account?subscribed=1`,

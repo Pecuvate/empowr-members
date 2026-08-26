@@ -142,6 +142,7 @@ export async function POST(request: Request) {
     const { error } = await service.from("mem_memberships").upsert(
       {
         account_id: meta.accountId,
+        participant_id: meta.participantId,
         plan_id: meta.planId,
         stripe_subscription_id: subscription.id,
         status,
