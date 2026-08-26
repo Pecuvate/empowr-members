@@ -117,7 +117,7 @@ export function SessionsCatalogue({
             value={ageInput}
             onChange={(event) => changeAge(event.target.value)}
             placeholder="any"
-            className="w-20 rounded-full border border-line bg-card px-3 py-2.5 text-sm font-semibold text-black focus:border-blue focus:outline-none"
+            className="w-20 rounded-full border border-line bg-card px-3 py-2.5 text-sm font-semibold text-black focus:border-blue focus:outline-none focus:ring-2 focus:ring-blue-soft"
           />
           {filtersActive && (
             <button
