@@ -12,7 +12,7 @@ import { getAuthedCheckinStaff } from "@/lib/admin";
 import { searchWalkInCandidates } from "@/lib/admin-data";
 
 export async function GET(request: Request) {
-  const admin = await getAuthedAdmin();
+  const staff = await getAuthedCheckinStaff();
   if (!staff) {
     return NextResponse.json({ error: "Not authorised" }, { status: 401 });
   }
