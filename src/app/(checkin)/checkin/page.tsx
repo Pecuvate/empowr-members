@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * Door-side landing page for check-in.
  *
  * Scanning a member's QR with a phone's native camera deep-links straight to
- * /admin/checkin/[bookingId], so the happy path never needs this page. It
+ * /checkin/[bookingId], so the happy path never needs this page. It
  * exists for the cases that path cannot serve: a flat battery, a screen too
  * dim to scan, or a member who never opened the ticket email. In-page
  * scanning is not an option — netlify.toml ships
