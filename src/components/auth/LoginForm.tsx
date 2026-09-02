@@ -161,7 +161,7 @@ function PasswordResetRequest({ onBack }: { onBack: () => void }) {
     setServerError(null);
     const supabase = createClient();
     // No redirectTo: the recovery email template carries its own link, built
-    // from {{ .TokenHash }} and pointing at /auth/callback with
+    // from {{ .TokenHash }} and pointing at /auth/confirm/start with
     // next=/account/password. Passing one here would be ignored by that
     // template and is a second place for the destination to drift.
     const { error } = await supabase.auth.resetPasswordForEmail(values.email);
@@ -242,7 +242,7 @@ function MagicLinkLogin({ next }: { next: string }) {
     const { error } = await supabase.auth.signInWithOtp({
       email: values.email,
       options: {
-        emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        emailRedirectTo: `${location.origin}/auth/confirm/start?next=${encodeURIComponent(next)}`,
         shouldCreateUser: false,
       },
     });

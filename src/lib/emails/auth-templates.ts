@@ -55,8 +55,8 @@ export type AuthTemplate = {
 //
 // The fix is Supabase's own documented pattern for server-rendered apps: send
 // {{ .TokenHash }} and let the app verify it with verifyOtp(), which is not
-// bound to a browser. /auth/callback already had that branch; only the emails
-// were pointing at the PKCE one.
+// bound to a browser. The email first opens /auth/confirm/start, which stages
+// the token without consuming it; only the member's explicit POST verifies it.
 //   https://supabase.com/docs/guides/auth/auth-email-passwordless
 //
 // The trade-off is real and accepted: a token-hash link works for anyone
@@ -68,14 +68,14 @@ export type AuthTemplate = {
 // read from node_modules rather than the docs, which are ambiguous on this.
 
 /** For flows STARTED IN THIS APP. {{ .RedirectTo }} is whatever the form passed
- *  as emailRedirectTo, so it already ends in /auth/callback?next=<path>: the
+ *  as emailRedirectTo, so it already ends in /auth/confirm/start?next=<path>:
  *  deep link survives (magic link from /login?next=/book/x lands on the booking
  *  page, not /account) and preview deploys still confirm against themselves,
  *  which a hardcoded {{ .SiteURL }} would break.
  *
  *  ⚠️ Appends with "&", so BOTH forms must send a query string in
- *  emailRedirectTo. SignupForm carries ?next=%2Faccount purely to satisfy
- *  this. */
+ *  emailRedirectTo. SignupForm carries ?next=%2Faccount too, so every app flow
+ *  obeys the same contract. */
 function appFlowUrl(type: string): string {
   return `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=${type}`;
 }
@@ -83,7 +83,7 @@ function appFlowUrl(type: string): string {
 /** For flows only reachable from the Supabase dashboard, where nothing in this
  *  app sets RedirectTo and it cannot be relied on to carry a query string. */
 function dashboardFlowUrl(type: string): string {
-  return `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=${type}`;
+  return `{{ .SiteURL }}/auth/confirm/start?token_hash={{ .TokenHash }}&type=${type}`;
 }
 
 // Magic link is the ONLY template that uses the RedirectTo form, because it is
@@ -110,7 +110,7 @@ const confirmUrl = dashboardFlowUrl("signup");
 // invite and email_change are dashboard-only. Nothing here sets RedirectTo for
 // those, so they take the SiteURL form instead.
 // Recovery lands on the set-a-new-password screen rather than /account.
-// /auth/callback signs the member in on the way through, and safeNext() there
+// /auth/confirm/complete signs the member in on the way through, and safeNext()
 // only ever accepts an in-app path, so this cannot be pointed off-site.
 const recoveryUrl = `${dashboardFlowUrl("recovery")}&next=/account/password`;
 const inviteUrl = dashboardFlowUrl("invite");
@@ -168,7 +168,7 @@ This link expires in ${EXPIRY_WORDING} and can only be used once. If you did not
  *  flow that would have stranded whoever followed it.
  *
  *  Both halves now exist, so the copy says what the link does. The link lands
- *  on /account/password via /auth/callback, which signs the member in on the
+ *  on /account/password via /auth/confirm/complete, which signs the member in
  *  way through — that session IS the authorisation to change the password, so
  *  the destination needs no second token of its own. */
 export function recoveryTemplate(): AuthTemplate {

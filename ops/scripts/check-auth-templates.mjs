@@ -112,7 +112,7 @@ if (failed) process.exitCode = 1;
  * The {{ .RedirectTo }} contract.
  *
  * magic_link is the ONLY template that builds its link from
- * `{{ .RedirectTo }}&token_hash=...` rather than `{{ .SiteURL }}/auth/callback?...`.
+ * `{{ .RedirectTo }}&token_hash=...` rather than a fixed SiteURL.
  * That is deliberate and should stay: a magic link's destination varies
  * (signing in from /login?next=/book/x has to return to that booking page),
  * and SiteURL is pinned to production so a SiteURL-based link cannot work on
@@ -124,7 +124,7 @@ if (failed) process.exitCode = 1;
  * in uri_allow_list. When it is not, Supabase silently DISCARDS the requested
  * redirect and substitutes the bare site_url, and the template then produces
  *
- *     https://members.empowrcic.org&token_hash=pkce_...&type=magiclink
+ *     https://members.empowrcic.org&token_hash=...&type=magiclink
  *
  * which is not a valid URL at all. The browser refuses it, so the member sees
  * a raw "invalid URL" warning rather than any error this app could word.

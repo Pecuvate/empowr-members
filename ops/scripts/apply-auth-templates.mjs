@@ -36,12 +36,22 @@ const keys = Object.keys(payload);
 console.log(`payload.json: ${keys.length} fields, ${raw.length} bytes`);
 
 // Refuse to ship a payload that still carries the browser-bound PKCE link.
-// {{ .ConfirmationURL }} is what /auth/callback CANNOT verify from a second
-// browser; see lib/emails/auth-templates.ts for the full reasoning.
+// {{ .ConfirmationURL }} is browser-bound and cannot survive a second browser;
+// see lib/emails/auth-templates.ts for the full reasoning.
 if (raw.includes("ConfirmationURL")) {
   console.error(
     "REFUSING: payload still contains {{ .ConfirmationURL }} — that is the\n" +
       "PKCE link that only works in the browser that started the flow."
+  );
+  process.exit(1);
+}
+
+// A token-bearing GET that verifies immediately is vulnerable to corporate
+// email scanners consuming the single-use token before the member clicks it.
+// Every linked token must land on the non-consuming staging route first.
+if (raw.includes("/auth/callback?token_hash=")) {
+  console.error(
+    "REFUSING: payload sends a token directly to the consuming callback."
   );
   process.exit(1);
 }

@@ -30,7 +30,7 @@ export function SignupForm() {
       email: values.email,
       password: values.password,
       options: {
-        emailRedirectTo: `${location.origin}/auth/callback`,
+        emailRedirectTo: `${location.origin}/auth/confirm/start?next=%2Faccount`,
         data: { name: values.name },
       },
     });
