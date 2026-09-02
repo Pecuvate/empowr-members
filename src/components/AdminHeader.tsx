@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CollapsibleNav } from "@/components/CollapsibleNav";
 
 const LINKS = [
-  { href: "/admin/checkin", label: "Check in" },
+  { href: "/checkin", label: "Check in" },
   { href: "/admin/offerings", label: "Offerings" },
   { href: "/admin/venues", label: "Venues" },
   { href: "/admin/guides", label: "Guides" },
