@@ -7,6 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const MEMBER_PREFIXES = ["/account", "/bookings", "/book", "/membership"];
 const ADMIN_PREFIX = "/admin";
+const CHECKIN_PREFIX = "/checkin";
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -14,7 +15,9 @@ export async function middleware(request: NextRequest) {
   const needsSession =
     MEMBER_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`)) ||
     path === ADMIN_PREFIX ||
-    path.startsWith(`${ADMIN_PREFIX}/`);
+    path.startsWith(`${ADMIN_PREFIX}/`) ||
+    path === CHECKIN_PREFIX ||
+    path.startsWith(`${CHECKIN_PREFIX}/`);
 
   // Nothing on this route depends on who is asking, so skip the auth
   // round trip entirely rather than building a client to throw the answer
