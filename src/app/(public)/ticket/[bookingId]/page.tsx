@@ -47,7 +47,7 @@ export default async function TicketPage({
     );
   }
 
-  const checkinUrl = membersUrl(`/admin/checkin/${ticket.id}`);
+  const checkinUrl = membersUrl(`/checkin/${ticket.id}`);
   const qrDataUrl = await renderQr(checkinUrl);
 
   return (
