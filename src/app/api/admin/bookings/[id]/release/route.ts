@@ -22,7 +22,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_request: Request, { params }: Params) {
-  const admin = await getAuthedAdmin();
+  const staff = await getAuthedCheckinStaff();
   if (!staff) {
     return NextResponse.json({ error: "Not authorised" }, { status: 401 });
   }
