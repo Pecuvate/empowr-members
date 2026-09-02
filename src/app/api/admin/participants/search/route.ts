@@ -8,12 +8,12 @@
 // result carries its own verdict, computed from the same isAgeEligible() the
 // booking routes use.
 import { NextResponse } from "next/server";
-import { getAuthedAdmin } from "@/lib/admin";
+import { getAuthedCheckinStaff } from "@/lib/admin";
 import { searchWalkInCandidates } from "@/lib/admin-data";
 
 export async function GET(request: Request) {
   const admin = await getAuthedAdmin();
-  if (!admin) {
+  if (!staff) {
     return NextResponse.json({ error: "Not authorised" }, { status: 401 });
   }
 
