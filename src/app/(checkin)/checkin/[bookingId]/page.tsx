@@ -2,7 +2,8 @@
 // src/app/(public)/ticket/[bookingId]/page.tsx). A read-only lookup, not
 // an auto-mark: a GET must never mutate attendance (bots, link previews,
 // back-button reloads), and staff need the visual-confirm step anyway
-// for safeguarding. Inherits the standalone check-in layout's session and CHECKIN_EMAILS gate.\nimport type { Metadata } from "next";
+// for safeguarding. Inherits the standalone check-in layout's session and CHECKIN_EMAILS gate.
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AlertTriangle, User } from "lucide-react";
 import { getBookingForCheckin } from "@/lib/admin-data";
