@@ -16,14 +16,14 @@
 // booking would strand a real payment with no refund, which is what the
 // admin occurrence-cancel flow (with its refund/credit choice) is for.
 import { NextResponse } from "next/server";
-import { getAuthedAdmin } from "@/lib/admin";
+import { getAuthedCheckinStaff } from "@/lib/admin";
 import { createServiceClient } from "@/lib/supabase/service";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_request: Request, { params }: Params) {
   const admin = await getAuthedAdmin();
-  if (!admin) {
+  if (!staff) {
     return NextResponse.json({ error: "Not authorised" }, { status: 401 });
   }
   const { id } = await params;
