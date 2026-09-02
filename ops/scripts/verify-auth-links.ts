@@ -64,3 +64,12 @@ test("both in-app email requests stage tokens on the confirmation route", () => 
   assert.match(signup, /emailRedirectTo:.*\/auth\/confirm\/start\?next=/);
   assert.match(login, /emailRedirectTo:.*\/auth\/confirm\/start\?next=/);
 });
+
+test("the staging redirect replaces rather than inherits the token query", () => {
+  const route = readFileSync(
+    path.join(PROJECT_ROOT, "src/app/auth/confirm/start/route.ts"),
+    "utf8"
+  );
+
+  assert.match(route, /\/auth\/confirm\?staged=1/);
+});
