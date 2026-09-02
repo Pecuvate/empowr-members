@@ -47,7 +47,7 @@ type OccurrenceRow = {
 };
 
 export async function POST(request: Request) {
-  const admin = await getAuthedAdmin();
+  const staff = await getAuthedCheckinStaff();
   if (!staff) {
     return NextResponse.json({ error: "Not authorised" }, { status: 401 });
   }
