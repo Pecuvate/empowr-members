@@ -9,7 +9,7 @@
 //
 //   - the ACCOUNT PAYING IS NOT THE CALLER. Staff pick the participant, so
 //     the account, its email and its Stripe customer are all resolved from
-//     the participant row, never from the signed-in admin.
+//     the participant row, never from the signed-in staff member.
 //   - mem_hold_bookings() runs with p_walk_in => true, which snapshots the
 //     door price, stamps source = 'walk_in', and allows a session that has
 //     already started.
@@ -18,7 +18,7 @@
 // ONE account -> age eligibility -> waiver (fail closed) -> atomic
 // capacity check -> Checkout. Nothing is charged before all four pass.
 import { NextResponse } from "next/server";
-import { getAuthedAdmin } from "@/lib/admin";
+import { getAuthedCheckinStaff } from "@/lib/admin";
 import { createServiceClient } from "@/lib/supabase/service";
 import { walkInSchema } from "@/lib/validation";
 import { checkWaivers, recordWaiverConsent } from "@/lib/waivers";
@@ -48,7 +48,7 @@ type OccurrenceRow = {
 
 export async function POST(request: Request) {
   const admin = await getAuthedAdmin();
-  if (!admin) {
+  if (!staff) {
     return NextResponse.json({ error: "Not authorised" }, { status: 401 });
   }
 
