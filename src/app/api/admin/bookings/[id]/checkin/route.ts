@@ -1,5 +1,5 @@
 // POST /api/admin/bookings/[id]/checkin — staff marks a booking attended
-// after visually confirming it on the /admin/checkin/[id] lookup page
+// after visually confirming it on the /checkin/[id] lookup page
 // (reached by scanning the ticket QR). Deliberately a separate, explicit
 // mutation from the lookup itself — a GET must never check someone in
 // (bots/link-previews/back-button reloads), and staff need the visual
@@ -13,14 +13,14 @@
 // the schema has no per-week attendance concept, so marking one week
 // attended would make the whole run look done. See BookingForCheckin.
 import { NextResponse } from "next/server";
-import { getAuthedAdmin } from "@/lib/admin";
+import { getAuthedCheckinStaff } from "@/lib/admin";
 import { createServiceClient } from "@/lib/supabase/service";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_request: Request, { params }: Params) {
   const admin = await getAuthedAdmin();
-  if (!admin) {
+  if (!staff) {
     return NextResponse.json({ error: "Not authorised" }, { status: 401 });
   }
   const { id } = await params;
