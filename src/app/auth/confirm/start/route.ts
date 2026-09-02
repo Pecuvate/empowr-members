@@ -26,7 +26,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const response = NextResponse.redirect(`${origin}/auth/confirm`, 303);
+  // The harmless query marker is load-bearing on Netlify: when a redirect
+  // destination has no query string, its edge layer preserves the source
+  // query parameters. Supplying our own query makes it discard token_hash
+  // instead of carrying that secret into the member's address bar.
+  const response = NextResponse.redirect(`${origin}/auth/confirm?staged=1`, 303);
   response.cookies.set({
     name: AUTH_CONFIRMATION_COOKIE,
     value: encodePendingAuthConfirmation({
