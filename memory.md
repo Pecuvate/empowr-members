@@ -2,6 +2,8 @@
 
 ## Current Status
 
+- **✅ 2026-09-03: STANDALONE RESTRICTED DOOR CHECK-IN IS LIVE.** PR #19 was squash-merged as `ca6616b` and its exact Netlify deploy is `ready`; the user confirmed the authenticated flow works. `/checkin` has its own minimal shell, booking lookup, guide and occurrence register, and ticket QR codes now point there. Access is `CHECKIN_EMAILS` **or** `ADMIN_EMAILS`; check-in-only users can mark attendance, release holds, search participants and take walk-in payments, but unrelated `/api/admin/*` endpoints remain admin-only. The release gate fixed a malformed `Metadata` import before merge and the full production build passed.
+
 - **✅ 2026-09-02: EARLY BIRD IS A REAL, PURCHASABLE TICKET TIER — it was display-only copy before.** `early_bird_price_pence` existed but `mem_hold_bookings()` never consulted it: every online booking priced `case when p_walk_in then walk_in_price_pence else price_pence end`. Roller Skate Events advertised "Early bird £10" while everyone paid £15, and no allocation concept existed anywhere in the schema. Migration `20260902215853` adds `mem_occurrences.early_bird_capacity` (**per occurrence** — each event carries its own allowance; NULL = not offered) and `mem_bookings.early_bird` (a column, not derived from `price_paid_pence`, which is a snapshot that drifts from the offering's current price). Commits `6af51a2` (app) / `6aae475` (schema of record).
   - **⚠️ `mem_hold_bookings()` was DROPPED and recreated, not `CREATE OR REPLACE`d.** Adding a parameter makes an **overload** in Postgres, and two overloads leave PostgREST unable to resolve the call; the DROP then destroys the grants, which are `service_role`-only here and **not** SECURITY DEFINER. Restored explicitly and re-verified. See [[feedback_postgres_function_param_creates_overload]] before touching this function again.
   - **The allocation check sits inside the same `for update of o` lock as capacity**, after the expired-hold sweep. Each tier resolves its own price and **refuses** rather than falling back — charging £15 after someone chose £10 is worse than a visible error.
@@ -303,6 +305,8 @@
 - Leaked-password protection Pro-plan-gated (accepted). **Test email — UPDATED 2026-08-29 by the user: use `tech@pecuvate.com` for ALL projects** (`tech+<tag>@pecuvate.com` when a fresh account is needed — the bare address already has a Members account, `b649352a`). `teams+` addresses **do** deliver; the Gmail connector here just cannot see that mailbox, which is a tooling limit, not a delivery failure — see [[feedback_absence_of_evidence_in_one_tool]].
 
 ## Key Decisions
+
+- GitHub contribution workflow (2026-09-03): `EmpowrCIC` may push feature branches and open PRs, but direct updates to `main` are blocked; only `Pecuvate` uses the owner bypass to merge. Do not add mandatory approval or latest-pusher restrictions—the owner must remain able to merge their own PR after review.
 
 - Stripe test/live key handling (agreed 2026-07-09): vault holds TEST values under `MEMBERS_STRIPE_SECRET_KEY`/`MEMBERS_STRIPE_PUBLISHABLE_KEY` (local dev pulls these); at Step 9 go-live, add `_LIVE`-suffixed vault entries via the same .env.shared intake and point the members entry in sync-to-netlify.ps1 `$siteVarMap` at them — app code reads the unsuffixed env var everywhere; webhook secret gets the same twin treatment
 

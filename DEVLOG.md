@@ -1,5 +1,13 @@
 # DEVLOG — Empowr Members
 
+## 2026-09-03 (session 12) — Standalone door check-in shipped through the new owner-only PR workflow
+
+- PR #19 added a standalone `/checkin` area with a minimal header, register and booking lookup pages; ticket QR codes and the admin Check in link now route staff there.
+- Access is server-gated by `CHECKIN_EMAILS` or `ADMIN_EMAILS`, while check-in staff are limited to attendance, hold release, participant search and walk-in payment operations.
+- The release gate caught a malformed `Metadata` import in the PR; it was corrected, the full production build passed, and runtime security headers remain active including `payment=()` denial.
+- PR #19 was squash-merged by `Pecuvate` as `ca6616b`, Netlify deployed that exact commit `ready`, and the live `/checkin` route was confirmed to work for an authorised user.
+- The repository is public with direct updates to `main` blocked; `EmpowrCIC` contributes by feature branch and PR, while only `Pecuvate` uses the owner bypass to merge.
+
 ## 2026-09-03 (session 11) — Auth email links no longer let scanners consume the member's one-time token
 
 - Investigated the reported "invalid or expired" sign-in link against the live Supabase Auth logs. This was **not capacity**: signup and OTP verification were returning 200, with no 429 or 5xx failures; the same one-time tokens were then presented again and returned `otp_expired` / `One-time token not found`. The affected signup itself was confirmed successfully.
@@ -35,26 +43,7 @@ Ran alongside sessions 10/11, which is why it carries no session number — comm
 - ⚠️ **`git add -A` swept a concurrent session's uncommitted DEVLOG edits into my commit.** Caught it, `reset --soft` + unstaged that file, recommitted; md5 verified their content intact. Do not use `git add -A` while another session is live in the same repo.
 - **Not verified:** nobody has walked the booking flow end to end, so no human has chosen Early bird and been charged £10 at Stripe; and the admin screens have not been viewed behind auth.
 
-## 2026-09-02 (session 9) — Review of today's own work found three defects, all already deployed; the worst would have killed the nightly sweep on its first line
-
-Asked to look over the day's work. Three real defects in code I wrote and shipped today. **None had caused damage yet** — the nightly job had not yet had a scheduled run, and there are still no real subscribers — but all three were live.
-
-- **🔴 THE NIGHTLY SWEEP WOULD HAVE THROWN ON IMPORT, EVERY NIGHT, FOREVER.** `netlify/functions/materialize-member-bookings.ts` imported `lib/materialize-member-bookings.ts`, which carried `import "server-only"`. That package is **not a lint marker — it is a module that throws**: its exports map is `{"react-server": "./empty.js", "default": "./index.js"}` and `index.js` is a bare `throw`. Next.js server components resolve the `react-server` condition and get the no-op; an esbuild-bundled Netlify function sets no such condition, takes the default, and dies on its first line. Phase 2 Step 4's entire safety net — the only thing that catches an occurrence added to a slot after someone subscribed — was dead on arrival at 03:15 UTC.
-  - **Every gate we have passed it.** `tsc --noEmit` passed, `next build` passed, and the Netlify deploy reported "2 functions + 1 edge function deployed successfully" — because none of them bundle or invoke a Netlify function. The failure only exists at invocation.
-  - **PROVEN BOTH WAYS, not reasoned about.** Bundled the old shape with esbuild (`--platform=node`) and imported it: `THROWS ON IMPORT -> This module cannot be imported from a Client Component module`. Bundled the fixed shape: imports fine.
-  - **I copied PecuvateDashboard's scheduled-function pattern without checking the one thing that differed** — its `nightly-inventory-background.ts` imports `@/lib/secrets/inventory`, which carries no `server-only` guard. Mine did.
-  - **Fixed by injecting the client**: `lib/materialize-member-bookings.ts` now takes a `SupabaseClient` parameter and carries no guard; the webhook passes `createServiceClient()`, the Netlify function builds its own from `@supabase/supabase-js`. `lib/supabase/service.ts` **keeps** its guard — it holds the service-role key, and that guard is correct. Same shape as `lib/slot-matching.ts` and `lib/catalogue-read.ts`, which are deliberately guard-free so they run outside Next.
-  - **New `verify:scheduled` (3/3) walks the real import graph** from every `netlify/functions/*.ts` through relative and `@/` imports and asserts nothing reachable carries the guard — plus a third test asserting the reconciliation module IS still reachable, so the guard test can't pass vacuously by the import being dropped. **Proven to fail by reintroducing the exact line**, then reverted.
-
-- **🔴 AN EARLY CHECK-IN WOULD HAVE DUPLICATED A SUBSCRIBER'S BOOKING.** The existence check read `source='member' AND status='confirmed'`. But `uniq_mem_booking_participant_occurrence` only covers `status in ('pending_payment','confirmed')` — so the moment staff mark a subscriber attended (and `/admin/checkin` has **no time guard**, staff check people in before a session starts), that row leaves both the query's reach *and* the index's. The next nightly sweep would see an entitled occurrence with no matching row and insert a **second** one, which the index would not reject. Result: the person listed twice on the door register and counted twice against capacity.
-  - Fixed by splitting one read into two sets that were being conflated: `occupied` (any live booking, **any source**, including `attended` — nothing may be created against these) and `ownedFuture` (`source='member' AND status='confirmed'` — the only set that may be cancelled). The any-source half also fixes a second case: a subscriber who had already paid for a session no longer ends up holding two rows for it.
-  - Both cancel paths additionally gained `.eq("source","member")` as belt-and-braces — even with a wrong id set, this can now never cancel somebody's paid booking.
-
-- **⚠️ THE WALK-IN EXCLUSION WAS DOCUMENTED BUT NOT IMPLEMENTED.** I told the user, the DEVLOG and `guides/contact-routing.md` that the staff alert does not fire for walk-ins. It did. `POST /api/admin/walk-ins` is explicitly "an ADMIN ENTRY POINT ONTO THE EXISTING PIPELINE" — same `mem_hold_bookings()`, same Stripe Checkout — so the same `checkout.session.completed` lands in the webhook and runs the same `sendBookingConfirmationForSession()`. **I asserted a behaviour I had never checked**, in three places. Now actually implemented (`source` added to the select, alert skipped when the rows are `walk_in`), which makes the existing docs true rather than needing them rewritten.
-
-- **🔑 The pattern across all three: I verified what the tools could see and asserted the rest.** The build was green each time, and the build could not see any of these. The two that mattered were only provable by running the thing — bundling the function, and reading the index predicate against the check-in route's lack of a time guard.
-
-`tsc --noEmit`, `next build`, and all seven verify suites (61 tests) pass.
+## 2026-09-02 (session 9) — Review found and fixed three deployed defects: a nightly-function import crash, duplicate subscriber rows after early check-in, and walk-in alerts that contradicted the docs
 
 ## 2026-09-02 (session 8) — Beginners Foundation capacity 25 → 16 across all 14 runs (data change, no migration needed); staff alert re-scoped after "subs" was read literally as Subscriptions, adding a second alert
 
