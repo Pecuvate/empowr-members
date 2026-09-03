@@ -15,7 +15,7 @@
 // history.replaceState.
 
 import { useEffect, useMemo, useState } from "react";
-import type { CatalogueOffering } from "@/lib/catalogue";
+import type { CatalogueListingOffering } from "@/lib/catalogue";
 import {
   OFFERING_TYPES,
   TYPE_LABELS,
@@ -39,7 +39,7 @@ function buildUrl(type: OfferingType | undefined, age: string) {
 export function SessionsCatalogue({
   offerings,
 }: {
-  offerings: CatalogueOffering[];
+  offerings: CatalogueListingOffering[];
 }) {
   // Deliberately NOT useSearchParams(): calling it during render is a
   // dynamic API, so Next skips prerendering this subtree and emits the
