@@ -67,7 +67,9 @@ export type CatalogueOffering = {
 };
 
 /** Offering shape used by the catalogue cards. Venues are derived from
- * upcoming scheduled occurrences, including occurrence-level overrides. */
+ * whichever level the offering sells at — upcoming scheduled occurrences
+ * (including occurrence-level overrides) for per_occurrence, or the course
+ * runs for per_run, which hold no occurrences to read. */
 export type CatalogueListingOffering = CatalogueOffering & {
   venues: Venue[];
 };
@@ -154,12 +156,29 @@ export async function listOfferingsWithVenues(
 
   return Promise.all(
     offerings.map(async (offering) => {
-      const occurrences = await listUpcomingOccurrences(offering.id);
       const venuesById = new Map<string, Venue>();
 
-      for (const occurrence of occurrences) {
-        const venue = occurrence.venue ?? offering.venue;
-        if (venue) venuesById.set(venue.id, venue);
+      // Dates live at whichever level the offering sells at, so the venues
+      // must be read from that same level. A per_run course carries NO
+      // occurrences at all (Beginners Foundation: 14 runs, 0 occurrences),
+      // so reading occurrences here finds nothing and the card can only
+      // fall back to the offering venue — which Prep to Street Skate does
+      // not have, because its levels genuinely run at two different parks
+      // and it sets the venue on every run instead. That combination left
+      // an active, bookable course rendering no venue at all.
+      // Same branch as the detail page, which is the other consumer of
+      // enrolment_scope; runs are deliberately not date-filtered there
+      // either, so the two agree on what "this course's venues" means.
+      if (offering.enrolment_scope === "per_run") {
+        for (const run of await listCourseRuns(offering.id)) {
+          const venue = run.venue ?? offering.venue;
+          if (venue) venuesById.set(venue.id, venue);
+        }
+      } else {
+        for (const occurrence of await listUpcomingOccurrences(offering.id)) {
+          const venue = occurrence.venue ?? offering.venue;
+          if (venue) venuesById.set(venue.id, venue);
+        }
       }
 
       if (venuesById.size === 0 && offering.venue) {
