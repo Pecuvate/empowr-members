@@ -66,6 +66,12 @@ export type CatalogueOffering = {
   venue: Venue | null;
 };
 
+/** Offering shape used by the catalogue cards. Venues are derived from
+ * upcoming scheduled occurrences, including occurrence-level overrides. */
+export type CatalogueListingOffering = CatalogueOffering & {
+  venues: Venue[];
+};
+
 export type CatalogueOccurrence = {
   id: string;
   course_run_id: string | null;
@@ -137,6 +143,32 @@ export async function listOfferings(
   filters: CatalogueFilters
 ): Promise<CatalogueOffering[]> {
   return filterOfferings(await listActiveOfferings(), filters);
+}
+
+/** Active offerings with the distinct venues used by their upcoming dates.
+ * The offering venue is only a fallback when a date has no override. */
+export async function listOfferingsWithVenues(
+  filters: CatalogueFilters
+): Promise<CatalogueListingOffering[]> {
+  const offerings = await listOfferings(filters);
+
+  return Promise.all(
+    offerings.map(async (offering) => {
+      const occurrences = await listUpcomingOccurrences(offering.id);
+      const venuesById = new Map<string, Venue>();
+
+      for (const occurrence of occurrences) {
+        const venue = occurrence.venue ?? offering.venue;
+        if (venue) venuesById.set(venue.id, venue);
+      }
+
+      if (venuesById.size === 0 && offering.venue) {
+        venuesById.set(offering.venue.id, offering.venue);
+      }
+
+      return { ...offering, venues: [...venuesById.values()] };
+    })
+  );
 }
 
 const getOfferingCached = unstable_cache(
