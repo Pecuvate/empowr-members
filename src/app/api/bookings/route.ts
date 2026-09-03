@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 import { getAuthedAccount } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { bookingSchema } from "@/lib/validation";
-import { checkWaivers, recordWaiverConsent } from "@/lib/waivers";
+import { checkWaivers, persistWaiverMatches } from "@/lib/waivers";
 import { recordDepartureConsents } from "@/lib/departure-consent";
 import { isAgeEligible, ageOn } from "@/lib/age";
 import { coverForOccurrence } from "@/lib/membership";
@@ -189,30 +189,7 @@ export async function POST(request: Request) {
   // Persist fresh matches so future bookings skip the name match, and
   // backfill mem_waiver_consents so future checkWaivers() calls take the
   // fast primary path instead of re-running the fallback every time.
-  await Promise.all(
-    waiverStatuses
-      .filter((s) => s.matchedPersonId)
-      .map((s) =>
-        service
-          .from("mem_participants")
-          .update({ person_id: s.matchedPersonId })
-          .eq("id", s.participantId)
-      )
-  );
-  await Promise.all(
-    waiverStatuses
-      .filter((s) => s.backfillFromResponseId)
-      .map((s) => {
-        const participant = participants.find((p) => p.id === s.participantId);
-        const personId = s.matchedPersonId ?? participant?.person_id;
-        if (!personId) return Promise.resolve();
-        return recordWaiverConsent({
-          participantId: s.participantId,
-          personId,
-          waiverResponseId: s.backfillFromResponseId!,
-        });
-      })
-  );
+  await persistWaiverMatches(waiverStatuses, participants);
 
   const unsigned = waiverStatuses.filter((s) => !s.signed);
   if (unsigned.length > 0) {

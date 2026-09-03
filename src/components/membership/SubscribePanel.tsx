@@ -12,6 +12,7 @@
 // hosted Stripe Checkout url and the webhook is the authority on what
 // happened — an abandoned checkout leaves no row behind.
 import { useState } from "react";
+import Link from "next/link";
 import { Button, FormNotice } from "@/components/ui/form";
 import type { Participant } from "@/lib/types";
 
@@ -31,13 +32,23 @@ export type SubscribablePlan = {
   ineligibleParticipantIds: string[];
 };
 
+/** Participant ids with no valid waiver. Account-wide rather than per-plan
+ *  — a waiver covers the person, not the session — so it sits alongside
+ *  `plans` instead of inside SubscribablePlan. Unlike the age and
+ *  subscription mirrors, this one is FIXABLE in a couple of minutes, so
+ *  these people are named with a link to fix it rather than silently
+ *  dropped from the list, which would just read as "where is my child?". */
+
 export function SubscribePanel({
   plans,
   participants,
+  unsignedParticipantIds,
 }: {
   plans: SubscribablePlan[];
   participants: Participant[];
+  unsignedParticipantIds: string[];
 }) {
+  const unsigned = new Set(unsignedParticipantIds);
   const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, string>>(() =>
@@ -47,7 +58,8 @@ export function SubscribePanel({
           participants.find(
           (x) =>
             !p.subscribedParticipantIds.includes(x.id) &&
-            !p.ineligibleParticipantIds.includes(x.id)
+            !p.ineligibleParticipantIds.includes(x.id) &&
+            !unsigned.has(x.id)
         )?.id ?? "",
       ])
     )
@@ -105,11 +117,16 @@ export function SubscribePanel({
         const eligible = participants.filter(
           (p) => !plan.ineligibleParticipantIds.includes(p.id)
         );
-        const available = eligible.filter(
+        const notSubscribed = eligible.filter(
           (p) => !plan.subscribedParticipantIds.includes(p.id)
         );
+        // Waiver last, so its notice names only people who could otherwise
+        // subscribe right now — telling someone to sign a waiver for a child
+        // who is the wrong age, or already subscribed, is noise.
+        const available = notSubscribed.filter((p) => !unsigned.has(p.id));
+        const needWaiver = notSubscribed.filter((p) => unsigned.has(p.id));
         const noneEligible = eligible.length === 0;
-        const allSubscribed = !noneEligible && available.length === 0;
+        const allSubscribed = !noneEligible && notSubscribed.length === 0;
 
         return (
           <div
@@ -135,33 +152,58 @@ export function SubscribePanel({
                 already subscribed to it.
               </p>
             ) : (
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <label className="sr-only" htmlFor={`participant-${plan.id}`}>
-                  Who is this subscription for?
-                </label>
-                <select
-                  id={`participant-${plan.id}`}
-                  value={selected[plan.id] ?? ""}
-                  onChange={(e) =>
-                    setSelected((s) => ({ ...s, [plan.id]: e.target.value }))
-                  }
-                  disabled={pendingPlanId !== null}
-                  className="rounded-xl border border-line bg-white px-4 py-2.5 font-semibold text-black disabled:opacity-60"
-                >
-                  {available.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  type="button"
-                  onClick={() => subscribe(plan.id)}
-                  disabled={pendingPlanId !== null}
-                >
-                  {pendingPlanId === plan.id ? "Opening checkout…" : "Subscribe"}
-                </Button>
-              </div>
+              <>
+                {available.length > 0 && (
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <label
+                      className="sr-only"
+                      htmlFor={`participant-${plan.id}`}
+                    >
+                      Who is this subscription for?
+                    </label>
+                    <select
+                      id={`participant-${plan.id}`}
+                      value={selected[plan.id] ?? ""}
+                      onChange={(e) =>
+                        setSelected((s) => ({ ...s, [plan.id]: e.target.value }))
+                      }
+                      disabled={pendingPlanId !== null}
+                      className="rounded-xl border border-line bg-white px-4 py-2.5 font-semibold text-black disabled:opacity-60"
+                    >
+                      {available.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      onClick={() => subscribe(plan.id)}
+                      disabled={pendingPlanId !== null}
+                    >
+                      {pendingPlanId === plan.id
+                        ? "Opening checkout…"
+                        : "Subscribe"}
+                    </Button>
+                  </div>
+                )}
+
+                {needWaiver.length > 0 && (
+                  <div className="mt-4">
+                    <FormNotice tone="error">
+                      <span className="block">
+                        {needWaiver.map((p) => p.name).join(", ")}{" "}
+                        {needWaiver.length === 1 ? "needs" : "need"} a signed
+                        waiver before being subscribed.
+                      </span>
+                      <Link href="/waiver" className="mt-1 inline-flex underline">
+                        Complete the waiver
+                      </Link>{" "}
+                      <span>— it only takes a minute, and it&apos;s once per person.</span>
+                    </FormNotice>
+                  </div>
+                )}
+              </>
             )}
           </div>
         );

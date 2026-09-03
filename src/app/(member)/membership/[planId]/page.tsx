@@ -17,6 +17,7 @@ import { listActivePlans, planAgeBounds } from "@/lib/membership";
 import { ageEligibleForPlan } from "@/lib/age";
 import { describeSlot } from "@/lib/slot-describe";
 import { seasonForPlan } from "@/lib/plan-seasons";
+import { checkWaivers } from "@/lib/waivers";
 import { formatPrice } from "@/lib/format";
 import {
   SubscribePanel,
@@ -93,6 +94,19 @@ export default async function SubscribeToPlanPage({
     },
   ];
 
+  // Mirror of the subscribe route's waiver gate, so an unsigned skater is
+  // named here rather than after the member has picked a plan and clicked.
+  // Same checkWaivers() the route gates on — never a copy, never a direct
+  // mem_waiver_consents read, or this view would silently disagree with the
+  // gate for anyone covered only via the legacy standalone-app fallback.
+  const waiverStatuses = await checkWaivers(
+    authed.user.email ?? "",
+    participants
+  );
+  const unsignedParticipantIds = waiverStatuses
+    .filter((s) => !s.signed)
+    .map((s) => s.participantId);
+
   const season = seasonForPlan(plan.stripe_lookup_key);
   const offeringSlug = plan.slots[0]?.offering_id;
 
@@ -130,7 +144,11 @@ export default async function SubscribeToPlanPage({
         </section>
       )}
 
-      <SubscribePanel plans={subscribable} participants={participants} />
+      <SubscribePanel
+        plans={subscribable}
+        participants={participants}
+        unsignedParticipantIds={unsignedParticipantIds}
+      />
 
       <section className="rounded-2xl bg-blue-pale p-5 sm:p-6">
         <h2 className="text-base font-extrabold text-blue-dark">
@@ -140,8 +158,8 @@ export default async function SubscribeToPlanPage({
           <li>Your place is held every week — nothing to book each time.</li>
           <li>You will be on the register when you arrive.</li>
           <li>
-            The waiver still has to be signed for whoever the subscription
-            covers, or they cannot take part.
+            A signed waiver is required before you can subscribe — once per
+            person, not once per session.
           </li>
           <li>Cancel any time from your membership page.</li>
         </ul>

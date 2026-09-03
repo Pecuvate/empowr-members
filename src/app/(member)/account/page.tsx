@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthedAccount } from "@/lib/auth";
+import { checkWaivers } from "@/lib/waivers";
 import type { Participant } from "@/lib/types";
 import { ProfileForm } from "@/components/account/ProfileForm";
 import { HouseholdManager } from "@/components/account/HouseholdManager";
@@ -28,6 +29,19 @@ export default async function AccountPage({
     .select("*")
     .eq("account_id", authed.account.id)
     .order("created_at", { ascending: true });
+  const household = (participants ?? []) as Participant[];
+
+  // Who still needs a waiver, via the same checkWaivers() every gate uses.
+  // Surfaced here because the account page is where a household is built,
+  // and until 2026-09-03 the waiver was only ever mentioned at the point it
+  // blocked something — so the first a member heard of it was a refusal.
+  const waiverStatuses = await checkWaivers(
+    authed.user.email ?? "",
+    household
+  );
+  const unsignedParticipantIds = waiverStatuses
+    .filter((s) => !s.signed)
+    .map((s) => s.participantId);
 
   return (
     <main className="mx-auto max-w-4xl space-y-8 px-4 py-10 sm:px-6">
@@ -66,7 +80,8 @@ export default async function AccountPage({
         </p>
         <div className="mt-5">
           <HouseholdManager
-            initialParticipants={(participants ?? []) as Participant[]}
+            initialParticipants={household}
+            initialUnsignedIds={unsignedParticipantIds}
           />
         </div>
       </section>

@@ -189,6 +189,49 @@ export async function recordWaiverConsent(params: {
   }
 }
 
+/** Persist everything a checkWaivers() pass just learned: fresh person_id
+ *  links onto mem_participants, and backfilled mem_waiver_consents rows so
+ *  the next check takes the fast primary path.
+ *
+ *  Extracted 2026-09-03 when the subscribe route became the third caller.
+ *  The booking and walk-in routes each carried their own copy of this
+ *  block; a third copy is exactly how two gates that must agree drift
+ *  apart, which the header comment on checkWaivers() already warns about.
+ *  Never throws — a failed persist costs a slower check next time, not
+ *  lost cover. */
+export async function persistWaiverMatches(
+  statuses: WaiverStatus[],
+  participants: Pick<Participant, "id" | "person_id">[]
+): Promise<void> {
+  const service = createServiceClient();
+
+  await Promise.all(
+    statuses
+      .filter((s) => s.matchedPersonId)
+      .map((s) =>
+        service
+          .from("mem_participants")
+          .update({ person_id: s.matchedPersonId })
+          .eq("id", s.participantId)
+      )
+  );
+
+  await Promise.all(
+    statuses
+      .filter((s) => s.backfillFromResponseId)
+      .map((s) => {
+        const participant = participants.find((p) => p.id === s.participantId);
+        const personId = s.matchedPersonId ?? participant?.person_id;
+        if (!personId) return Promise.resolve();
+        return recordWaiverConsent({
+          participantId: s.participantId,
+          personId,
+          waiverResponseId: s.backfillFromResponseId!,
+        });
+      })
+  );
+}
+
 // --- Write path (Phase 1: in-app waiver) ---
 
 export type SubmitWaiverInput = {

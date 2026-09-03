@@ -21,6 +21,7 @@ import {
   ageEligibleForPlan,
 } from "@/lib/membership";
 import { requestOrigin } from "@/lib/request-origin";
+import { checkWaivers, persistWaiverMatches } from "@/lib/waivers";
 
 export async function POST(request: Request) {
   const authed = await getAuthedAccount();
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
   // stranger's child — the same ownership check the booking flow makes.
   const { data: participant, error: participantError } = await service
     .from("mem_participants")
-    .select("id, name, dob")
+    .select("id, name, dob, person_id")
     .eq("id", participantId)
     .eq("account_id", authed.account.id)
     .maybeSingle();
@@ -87,6 +88,30 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: `${participant.name} is outside the age range for this session.`,
+      },
+      { status: 409 }
+    );
+  }
+
+  // Waiver gate — fails CLOSED, exactly as the booking and walk-in routes
+  // do, and for the same reason the age check above exists: without it the
+  // first refusal came at the door, AFTER money had changed hands. A
+  // subscription is a recurring charge, so that is worse here than on a
+  // one-off booking, not better.
+  //
+  // Uses checkWaivers() — never a direct mem_waiver_consents read — so
+  // someone covered only by the legacy fallback (they signed on the
+  // standalone waiver.empowrcic.org app) is still recognised.
+  const email = authed.user.email;
+  const waiverStatuses = await checkWaivers(email ?? "", [participant]);
+  await persistWaiverMatches(waiverStatuses, [participant]);
+
+  if (waiverStatuses.some((s) => !s.signed)) {
+    return NextResponse.json(
+      {
+        error: "waiver_required",
+        message: `${participant.name} needs a signed waiver before subscribing.`,
+        unsigned: [{ id: participant.id, name: participant.name }],
       },
       { status: 409 }
     );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { Pencil, Plus, Trash2, UserRound } from "lucide-react";
 import { ageOn } from "@/lib/age";
@@ -11,13 +12,23 @@ import { ParticipantForm } from "@/components/account/ParticipantForm";
 
 export function HouseholdManager({
   initialParticipants,
+  initialUnsignedIds,
 }: {
   initialParticipants: Participant[];
+  /** Ids with no valid waiver, resolved server-side by checkWaivers(). */
+  initialUnsignedIds: string[];
 }) {
   const [participants, setParticipants] = useState(initialParticipants);
+  // Tracked in state rather than read from the prop so the banner is correct
+  // the instant someone is added — this page never reloads on add, and a
+  // brand-new participant cannot have a waiver by definition. Waivers are
+  // signed on /waiver, a different page, so nothing here can clear an id.
+  const [unsignedIds, setUnsignedIds] = useState<string[]>(initialUnsignedIds);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const needWaiver = participants.filter((p) => unsignedIds.includes(p.id));
 
   async function create(values: ParticipantInput) {
     const res = await fetch("/api/participants", {
@@ -27,7 +38,9 @@ export function HouseholdManager({
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error ?? "Could not add the participant.");
-    setParticipants((list) => [...list, body.participant as Participant]);
+    const created = body.participant as Participant;
+    setParticipants((list) => [...list, created]);
+    setUnsignedIds((ids) => [...ids, created.id]);
     setAdding(false);
   }
 
@@ -63,11 +76,30 @@ export function HouseholdManager({
       return;
     }
     setParticipants((list) => list.filter((p) => p.id !== participant.id));
+    setUnsignedIds((ids) => ids.filter((id) => id !== participant.id));
   }
 
   return (
     <div className="space-y-4">
       {error && <FormNotice tone="error">{error}</FormNotice>}
+
+      {/* Persistent until every person is covered. The waiver is a hard gate
+          on booking, walk-ins AND subscribing, so leaving it unmentioned
+          until one of those refuses is how someone ends up discovering it at
+          the door. Named per person, because a household can be half done. */}
+      {needWaiver.length > 0 && (
+        <FormNotice tone="error">
+          <span className="block">
+            {needWaiver.map((p) => p.name).join(", ")}{" "}
+            {needWaiver.length === 1 ? "needs" : "need"} a signed waiver before
+            being booked onto a session or subscribed.
+          </span>
+          <Link href="/waiver" className="mt-1 inline-flex underline">
+            Complete the waiver
+          </Link>{" "}
+          <span>— once per person, not once per session.</span>
+        </FormNotice>
+      )}
 
       {participants.length === 0 && !adding && (
         <p className="rounded-xl bg-blue-pale px-4 py-3 text-sm font-semibold text-blue-dark">

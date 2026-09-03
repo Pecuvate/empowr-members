@@ -21,7 +21,7 @@ import { NextResponse } from "next/server";
 import { getAuthedAdmin } from "@/lib/admin";
 import { createServiceClient } from "@/lib/supabase/service";
 import { walkInSchema } from "@/lib/validation";
-import { checkWaivers, recordWaiverConsent } from "@/lib/waivers";
+import { checkWaivers, persistWaiverMatches } from "@/lib/waivers";
 import { recordDepartureConsents } from "@/lib/departure-consent";
 import { isAgeEligible, ageOn } from "@/lib/age";
 import { PENDING_BOOKING_EXPIRY_MINUTES } from "@/lib/business-rules";
@@ -186,30 +186,7 @@ export async function POST(request: Request) {
   // only by the fallback back to "unsigned" and block a hall full of people.
   const waiverStatuses = await checkWaivers(accountEmail, participants);
 
-  await Promise.all(
-    waiverStatuses
-      .filter((s) => s.matchedPersonId)
-      .map((s) =>
-        service
-          .from("mem_participants")
-          .update({ person_id: s.matchedPersonId })
-          .eq("id", s.participantId)
-      )
-  );
-  await Promise.all(
-    waiverStatuses
-      .filter((s) => s.backfillFromResponseId)
-      .map((s) => {
-        const participant = participants.find((p) => p.id === s.participantId);
-        const personId = s.matchedPersonId ?? participant?.person_id;
-        if (!personId) return Promise.resolve();
-        return recordWaiverConsent({
-          participantId: s.participantId,
-          personId,
-          waiverResponseId: s.backfillFromResponseId!,
-        });
-      })
-  );
+  await persistWaiverMatches(waiverStatuses, participants);
 
   const unsigned = waiverStatuses.filter((s) => !s.signed);
   if (unsigned.length > 0) {
