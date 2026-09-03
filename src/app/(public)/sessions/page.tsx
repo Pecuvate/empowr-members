@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { listOfferings } from "@/lib/catalogue";
+import { listOfferingsWithVenues } from "@/lib/catalogue";
 import { SessionsCatalogue } from "@/components/catalogue/SessionsCatalogue";
 
 export const metadata: Metadata = {
@@ -21,7 +21,7 @@ export const revalidate = 300;
 
 export default async function SessionsPage() {
   // The whole active set — the client filters it. Single-digit rows.
-  const offerings = await listOfferings({});
+  const offerings = await listOfferingsWithVenues({});
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
