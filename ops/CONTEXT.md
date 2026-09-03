@@ -1,4 +1,4 @@
-# Ops — Deployment & Environment
+# Ops â€” Deployment & Environment
 
 Netlify deployment configuration for Empowr Members.
 
@@ -6,18 +6,18 @@ Netlify deployment configuration for Empowr Members.
 
 | Setting | Value |
 |---|---|
-| Site | `empowr-members` — ID `76f903e4-3795-406a-9478-34be6b0ed015` (account `pecuvate`) |
-| Domain | members.empowrcic.org — live, Route53 CNAME → empowr-members.netlify.app |
+| Site | `empowr-members` â€” ID `76f903e4-3795-406a-9478-34be6b0ed015` (account `pecuvate`) |
+| Domain | members.empowrcic.org â€” live, Route53 CNAME â†’ empowr-members.netlify.app |
 | Branch | main |
-| **Base directory** | **src/** — Netlify's file scope starts here; any file a function or build step reads must live inside src/ |
+| **Base directory** | **src/** â€” Netlify's file scope starts here; any file a function or build step reads must live inside src/ |
 | Build command | `npm run build` |
-| Publish | `.next` — Netlify CI resolves publish relative to BASE (src/), so bare `.next` is correct; local `netlify deploy --build` resolves from the repo root and misleads — never CLI-deploy |
+| Publish | `.next` â€” Netlify CI resolves publish relative to BASE (src/), so bare `.next` is correct; local `netlify deploy --build` resolves from the repo root and misleads â€” never CLI-deploy |
 | Plugin | `@netlify/plugin-nextjs` (also in src/package.json devDependencies) |
 | Node | 20 |
 
-Config lives in `netlify.toml` at the **repo root** (never inside src/). git push to main auto-deploys — never fire a manual deploy on top.
+Config lives in `netlify.toml` at the **repo root** (never inside src/). git push to main auto-deploys â€” never fire a manual deploy on top.
 
-Netlify env vars must be set via the API (`POST /accounts/{id}/env?site_id=`) — the MCP env-var tool silently fails; no scopes on free plan; never `envVarIsSecret`.
+Netlify env vars must be set via the API (`POST /accounts/{id}/env?site_id=`) â€” the MCP env-var tool silently fails; no scopes on free plan; never `envVarIsSecret`.
 
 ## Environment Variables
 
@@ -29,11 +29,13 @@ Secrets are on the vault pipeline (registered 2026-07-08): vault keys are `MEMBE
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | empowr-cic project URL | Browser-safe |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon key for RLS-scoped reads | Browser-safe |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service client — all writes; bypasses RLS | Server-only |
-| `STRIPE_SECRET_KEY` | Checkout sessions, refunds, subscriptions, Customer Portal. Restricted key — needs **Prices: Read, Subscriptions: Write, Customer portal: Write** (Read is not enough). Production is LIVE mode; `.env.local` is `rk_test_`. | Server-only |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service client â€” all writes; bypasses RLS | Server-only |
+| `STRIPE_SECRET_KEY` | Checkout sessions, refunds, subscriptions, Customer Portal. Restricted key â€” needs **Prices: Read, Subscriptions: Write, Customer portal: Write** (Read is not enough). Production is LIVE mode; `.env.local` is `rk_test_`. | Server-only |
 | `STRIPE_WEBHOOK_SECRET` | Webhook signature verification | Server-only |
-| ~~`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`~~ | **REMOVED** — the app uses hosted Checkout redirect, no browser stripe-js. Deliberately absent from Netlify; do not re-add. | n/a |
+| ~~`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`~~ | **REMOVED** â€” the app uses hosted Checkout redirect, no browser stripe-js. Deliberately absent from Netlify; do not re-add. | n/a |
 | `RESEND_API_KEY` | Transactional email | Server-only |
+| `BREVO_API_KEY` | Brevo Contacts API; operational session lists only | Server-only |
+| `BREVO_*_LIST_ID` | IDs 7â€“16 for the ten managed session-communication lists | Server-only |
 | `ADMIN_EMAILS` | Comma-separated admin allowlist for middleware guard | Server-only |
 
 ## Go-Live Sequence
@@ -43,3 +45,4 @@ Secrets are on the vault pipeline (registered 2026-07-08): vault keys are `MEMBE
 3. /netlify-supabase-check
 4. /netlify-deploy (site + domain + env vars)
 5. Update `_config/registry/netlify-sites.md`, `github.md`, `env-vars.md` via /update-registry
+
