@@ -28,12 +28,13 @@ test("maps the five live Stripe subscription lookup keys", () => {
   assert.equal(brevoListKeyForPlan("members_sk8_skool_all_ages_monthly"), "sk8AllAges");
 });
 
-test("ignores missing and invalid list configuration", () => {
+test("uses permanent defaults and accepts valid environment overrides", () => {
   const lists = configuredBrevoLists({
-    BREVO_SKATE_JAM_LIST_ID: "10",
+    BREVO_SKATE_JAM_LIST_ID: "110",
     BREVO_SYNKRON8_LIST_ID: "not-a-number",
   } as NodeJS.ProcessEnv);
-  assert.equal(lists.get("skateJam"), 10);
+  assert.equal(lists.get("skateJam"), 110);
   assert.equal(lists.has("synkron8"), false);
+  assert.equal(lists.get("rollerQuadCamp"), 16);
 });
 
