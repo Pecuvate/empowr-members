@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Set a new password — Empowr Member
  *
  *  This is an ordinary guarded member page, not a special reset route, and
  *  that is the whole design. Following the recovery link runs verifyOtp() in
- *  /auth/callback, which signs the member in; by the time they arrive here
+ *  /auth/confirm/complete, which signs the member in; by the time they arrive here
  *  they hold a real session, so "prove it is you" has already happened and
  *  updateUser() can simply be trusted. There is no second token to validate,
  *  nothing to expire independently, and no reset-only state to get stuck in.

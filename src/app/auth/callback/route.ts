@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { requestOrigin } from "@/lib/request-origin";
+import { safeNext } from "@/lib/auth-confirmation";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -44,12 +45,4 @@ export async function GET(request: NextRequest) {
       "That sign-in link is invalid or has expired. Please try again."
     )}`
   );
-}
-
-// Only ever redirect within this app.
-function safeNext(next: string | null): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) {
-    return "/account";
-  }
-  return next;
 }

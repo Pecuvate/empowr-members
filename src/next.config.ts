@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.0.0/16", "10.0.0.0/8"],
 
+  // Netlify's [[headers]] block covers CDN-served files, but not HTML emitted
+  // by the Next.js runtime. Keep the baseline on both paths so pages and
+  // static assets receive the same browser protections.
   async headers() {
     return [
       {

@@ -71,8 +71,8 @@ export async function middleware(request: NextRequest) {
   if (user && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/account";
-    // Carry an auth error across rather than dropping it. /auth/callback
-    // reports a dead link by redirecting to /login?error=..., and this
+    // Carry an auth error across rather than dropping it. The auth completion
+    // routes report a dead link by redirecting to /login?error=..., and this
     // redirect used to wipe the query string — so a signed-in member who
     // followed an expired or already-used password-reset link landed on
     // their own account with NO message at all. That reads as success: they
