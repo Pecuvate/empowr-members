@@ -4,11 +4,11 @@ import { MapPin } from "lucide-react";
 // module carries `import "server-only"`, and this card is rendered by
 // the client-side filter UI on /sessions. A type-only import is erased
 // at compile time and stays safe.
-import type { CatalogueOffering } from "@/lib/catalogue";
+import type { CatalogueListingOffering } from "@/lib/catalogue";
 import { TYPE_LABELS_SINGULAR } from "@/lib/offering-types";
 import { formatAgeRange, formatPrice } from "@/lib/format";
 
-export function OfferingCard({ offering }: { offering: CatalogueOffering }) {
+export function OfferingCard({ offering }: { offering: CatalogueListingOffering }) {
   return (
     <Link
       href={`/sessions/${offering.slug}`}
@@ -31,10 +31,10 @@ export function OfferingCard({ offering }: { offering: CatalogueOffering }) {
         </p>
       )}
       <div className="mt-auto flex items-center justify-between gap-3 pt-4">
-        {offering.venue ? (
-          <span className="flex items-center gap-1 text-sm font-semibold text-muted">
-            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            {offering.venue.name}
+        {offering.venues.length > 0 ? (
+          <span className="flex min-w-0 items-start gap-1 text-sm font-semibold text-muted">
+            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span>{offering.venues.map((venue) => venue.name).join(" & ")}</span>
           </span>
         ) : (
           <span className="text-sm font-semibold text-muted">
