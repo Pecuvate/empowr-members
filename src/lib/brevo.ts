@@ -17,6 +17,22 @@ export const BREVO_LIST_ENV = {
 
 export type BrevoListKey = keyof typeof BREVO_LIST_ENV;
 
+// Brevo list IDs are public configuration, not credentials. Keeping the
+// agreed permanent session lists here means Netlify only needs BREVO_API_KEY.
+// Environment overrides remain available if a list is ever replaced.
+export const DEFAULT_BREVO_LIST_IDS: Record<BrevoListKey, number> = {
+  synkron8: 7,
+  beginnersFoundations: 8,
+  prepToStreet: 9,
+  skateJam: 10,
+  sk8KidzMonday: 11,
+  sk8KidzWednesday: 12,
+  sk8AllAges: 13,
+  adultRollerEvents: 14,
+  kidzRollerEvents: 15,
+  rollerQuadCamp: 16,
+};
+
 export function configuredBrevoLists(
   env: NodeJS.ProcessEnv = process.env
 ): Map<BrevoListKey, number> {
@@ -25,7 +41,8 @@ export function configuredBrevoLists(
     BrevoListKey,
     string,
   ][]) {
-    const value = Number(env[variable]);
+    const configured = env[variable];
+    const value = configured ? Number(configured) : DEFAULT_BREVO_LIST_IDS[key];
     if (Number.isInteger(value) && value > 0) result.set(key, value);
   }
   return result;
