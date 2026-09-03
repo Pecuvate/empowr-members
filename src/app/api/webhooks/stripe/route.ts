@@ -1,7 +1,7 @@
-// POST /api/webhooks/stripe — signature-verified, idempotent.
-// checkout.session.completed → confirm that session's pending holds
+// POST /api/webhooks/stripe â€” signature-verified, idempotent.
+// checkout.session.completed â†’ confirm that session's pending holds
 // (replays no-op: the status filter matches nothing the second time).
-// checkout.session.expired → release unpaid holds without waiting for
+// checkout.session.expired â†’ release unpaid holds without waiting for
 // the grace expiry. Non-2xx makes Stripe retry, so only transient
 // (database) failures return 500; anything else is acknowledged.
 import { NextResponse } from "next/server";
@@ -18,6 +18,7 @@ import {
   currentPeriodEnd,
 } from "@/lib/stripe-subscription";
 import { reconcileMemberBookings } from "@/lib/materialize-member-bookings";
+import { reconcileBrevo } from "@/lib/reconcile-brevo";
 
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     const service = createServiceClient();
 
     if (event.type === "checkout.session.completed") {
-      // Card payments are synchronous — anything unpaid here would be an
+      // Card payments are synchronous â€” anything unpaid here would be an
       // async method we don't offer; acknowledge and wait for nothing.
       if (session.payment_status !== "paid") {
         return NextResponse.json({ received: true });
@@ -75,14 +76,22 @@ export async function POST(request: Request) {
       }
 
       if (confirmed?.length) {
-        // First-time confirmation (replays return no rows) — send the
+        // First-time confirmation (replays return no rows) â€” send the
         // booking-confirmation email (with the ticket link). Failure-
         // swallowed internally and must NOT fail the webhook, or Stripe
         // would retry an already-paid, already-confirmed session.
         await sendBookingConfirmationForSession(service, session.id);
+        // Best-effort: communications must never turn a successful payment
+        // into a failed Stripe webhook. The nightly sweep retries it.
+        try {
+          const accountId = session.metadata?.account_id;
+          if (accountId) await reconcileBrevo(service, { accountIds: [accountId] });
+        } catch (error) {
+          console.error("[webhook] Brevo booking sync failed", session.id, error);
+        }
       } else {
         // Replay (already confirmed) is fine; paid-for-released-holds is
-        // not — surface it loudly for a manual refund until Step 7 tooling.
+        // not â€” surface it loudly for a manual refund until Step 7 tooling.
         const { data: rows } = await service
           .from("mem_bookings")
           .select("id, status")
@@ -90,7 +99,7 @@ export async function POST(request: Request) {
         const stranded = (rows ?? []).filter((r) => r.status !== "confirmed");
         if (stranded.length > 0) {
           console.error(
-            "PAID CHECKOUT FOR RELEASED HOLDS — refund needed",
+            "PAID CHECKOUT FOR RELEASED HOLDS â€” refund needed",
             session.id,
             paymentIntentId,
             stranded
@@ -114,7 +123,7 @@ export async function POST(request: Request) {
   //
   // OWNERSHIP FIRST. This Stripe account is shared with Empowr Heroes and
   // Stripe delivers every subscribed event type to every endpoint on the
-  // account — an event arriving here is only "some event on the Empowr CIC
+  // account â€” an event arriving here is only "some event on the Empowr CIC
   // account" until proven otherwise. Heroes' donations are subscriptions too.
   // membersSubscriptionMeta() is a positive check against metadata this app
   // stamps itself; anything unrecognised is ignored, never assumed to be ours.
@@ -127,7 +136,7 @@ export async function POST(request: Request) {
     const meta = membersSubscriptionMeta(subscription);
     if (!meta) {
       console.log(
-        `[webhook] Ignoring ${event.type} ${subscription.id} — not a Members subscription`
+        `[webhook] Ignoring ${event.type} ${subscription.id} â€” not a Members subscription`
       );
       return NextResponse.json({ received: true });
     }
@@ -138,7 +147,7 @@ export async function POST(request: Request) {
         ? "cancelled"
         : toMembershipStatus(subscription.status);
 
-    // Resolved BEFORE the upsert, and only for `created` — this is what
+    // Resolved BEFORE the upsert, and only for `created` â€” this is what
     // distinguishes a genuine first-time subscribe (worth a staff alert)
     // from a webhook retry/replay of the same `created` event, which the
     // upsert below would otherwise treat identically (upsert doesn't say
@@ -175,17 +184,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Retry" }, { status: 500 });
     }
     console.log(
-      `[webhook] Membership ${subscription.id} → ${status} (account ${meta.accountId})`
+      `[webhook] Membership ${subscription.id} â†’ ${status} (account ${meta.accountId})`
     );
 
-    // Staff alert — one per genuine new subscribe, never on a replay.
+    // Staff alert â€” one per genuine new subscribe, never on a replay.
     // Best-effort, same reasoning as the booking one: an internal
     // notification failing must never look like a failed subscription.
     if (isNewSubscription) {
       await sendStaffSubscriptionAlert(service, meta);
     }
 
-    // Phase 2 Step 4 — sync this participant's £0 booking rows to their
+    // Phase 2 Step 4 â€” sync this participant's Â£0 booking rows to their
     // now-current set of active memberships (creates on a fresh subscribe,
     // cancels forward on cancel/past_due). Best-effort: the membership
     // status write above is the part Stripe retries on failure, and the
@@ -199,7 +208,13 @@ export async function POST(request: Request) {
         error
       );
     }
+    try {
+      await reconcileBrevo(service, { accountIds: [meta.accountId] });
+    } catch (error) {
+      console.error("[webhook] Brevo membership sync failed", subscription.id, error);
+    }
   }
 
   return NextResponse.json({ received: true });
 }
+
