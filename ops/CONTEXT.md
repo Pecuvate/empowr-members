@@ -35,7 +35,7 @@ Secrets are on the vault pipeline (registered 2026-07-08): vault keys are `MEMBE
 | ~~`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`~~ | **REMOVED** â€” the app uses hosted Checkout redirect, no browser stripe-js. Deliberately absent from Netlify; do not re-add. | n/a |
 | `RESEND_API_KEY` | Transactional email | Server-only |
 | `BREVO_API_KEY` | Brevo Contacts API; operational session lists only | Server-only |
-| `BREVO_*_LIST_ID` | IDs 7â€“16 for the ten managed session-communication lists | Server-only |
+| `BREVO_*_LIST_ID` | Optional overrides; permanent IDs 7â€“16 live in `lib/brevo.ts` | Server-only |
 | `ADMIN_EMAILS` | Comma-separated admin allowlist for middleware guard | Server-only |
 
 ## Go-Live Sequence
