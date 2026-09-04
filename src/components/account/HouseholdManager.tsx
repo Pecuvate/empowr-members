@@ -13,8 +13,10 @@ import { ParticipantForm } from "@/components/account/ParticipantForm";
 export function HouseholdManager({
   initialParticipants,
   initialUnsignedIds,
+  accountName,
 }: {
   initialParticipants: Participant[];
+  accountName: string;
   /** Ids with no valid waiver, resolved server-side by checkWaivers(). */
   initialUnsignedIds: string[];
 }) {
@@ -25,16 +27,24 @@ export function HouseholdManager({
   // signed on /waiver, a different page, so nothing here can clear an id.
   const [unsignedIds, setUnsignedIds] = useState<string[]>(initialUnsignedIds);
   const [adding, setAdding] = useState(false);
+  const [addingSelf, setAddingSelf] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const needWaiver = participants.filter((p) => unsignedIds.includes(p.id));
+  // Read off the row rather than by comparing names with the account: both
+  // are free text, a household can legitimately repeat a name, and a match
+  // would start failing the moment somebody corrects their profile. The row
+  // created through "Add myself" carries the fact directly, so adding
+  // yourself removes the button on the spot — this list is state, and the
+  // page never reloads on add.
+  const hasSelf = participants.some((p) => p.is_account_holder);
 
   async function create(values: ParticipantInput) {
     const res = await fetch("/api/participants", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
+      body: JSON.stringify({ ...values, is_account_holder: addingSelf }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error ?? "Could not add the participant.");
@@ -182,22 +192,43 @@ export function HouseholdManager({
       {adding ? (
         <div className="rounded-xl border border-line p-4">
           <ParticipantForm
-            submitLabel="Add participant"
+            submitLabel={addingSelf ? "Add myself as a skater" : "Add skater"}
+            defaultName={addingSelf ? accountName : undefined}
+            participantKind={addingSelf ? "self" : "other"}
             onSubmit={create}
             onCancel={() => setAdding(false)}
           />
         </div>
       ) : (
-        <Button
-          type="button"
-          onClick={() => {
-            setEditingId(null);
-            setAdding(true);
-          }}
-          className="flex w-fit items-center gap-1.5"
-        >
-          <Plus className="h-4 w-4" aria-hidden /> Add participant
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          {!hasSelf && (
+            <Button
+              type="button"
+              onClick={() => {
+                setEditingId(null);
+                setAddingSelf(true);
+                setAdding(true);
+              }}
+              className="flex items-center gap-1.5"
+            >
+              <Plus className="h-4 w-4" aria-hidden /> Add myself as a skater
+            </Button>
+          )}
+          {/* Promoted to primary once the self button is gone, so the screen
+              always offers one obvious action rather than a lone secondary. */}
+          <Button
+            type="button"
+            variant={hasSelf ? "primary" : "secondary"}
+            onClick={() => {
+              setEditingId(null);
+              setAddingSelf(false);
+              setAdding(true);
+            }}
+            className="flex items-center gap-1.5"
+          >
+            <Plus className="h-4 w-4" aria-hidden /> Add a child or someone else
+          </Button>
+        </div>
       )}
     </div>
   );

@@ -277,8 +277,18 @@ export const cancelOccurrenceSchema = z.object({
   reason: optionalTrimmed(500),
 });
 
+// Creation only. is_account_holder is kept OUT of participantSchema, which
+// PATCH /api/participants/[id] spreads wholesale into the update: were it in
+// there, every edit of the self row would have to resend the flag or silently
+// clear it, and editing a child could claim to be the account holder. Who the
+// member is gets decided once, when the row is created.
+export const participantCreateSchema = participantSchema.extend({
+  is_account_holder: z.boolean().default(false),
+});
+
 export type ProfileInput = z.infer<typeof profileSchema>;
 export type ParticipantInput = z.infer<typeof participantSchema>;
+export type ParticipantCreateInput = z.infer<typeof participantCreateSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
 export type PasswordLoginInput = z.infer<typeof passwordLoginSchema>;
 export type MagicLinkInput = z.infer<typeof magicLinkSchema>;

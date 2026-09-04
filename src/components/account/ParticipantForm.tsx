@@ -28,11 +28,15 @@ export function ParticipantForm({
   submitLabel,
   onSubmit,
   onCancel,
+  defaultName,
+  participantKind = "other",
 }: {
   initial?: Participant;
   submitLabel: string;
   onSubmit: (values: ParticipantInput) => Promise<void>;
   onCancel: () => void;
+  defaultName?: string;
+  participantKind?: "self" | "other";
 }) {
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -55,7 +59,7 @@ export function ParticipantForm({
             initial.default_travel_method as ParticipantInput["default_travel_method"],
         }
       : {
-          name: "",
+          name: defaultName ?? "",
           dob: "",
           emergency_contact_name: "",
           emergency_contact_phone: "",
@@ -65,11 +69,7 @@ export function ParticipantForm({
   });
 
   const dob = watch("dob");
-  // Assume a child until a date of birth says otherwise: this form is
-  // reached from "Add participant", which most often means a child, and the
-  // child-shaped wording plus the travel question are the safeguarding-
-  // relevant defaults to show while the answer is unknown.
-  const isChild = dob ? ageOn(dob) < 18 : true;
+  const isChild = dob ? ageOn(dob) < 18 : participantKind === "other";
 
   async function submit(values: ParticipantInput) {
     setServerError(null);

@@ -104,6 +104,9 @@ export type Participant = {
   medical_notes: string | null;
   person_id: string | null; // waiver system link
   default_travel_method: string | null; // pre-fill for per-booking departure consent
+  /** True on the one row that is the account holder themselves. Set when
+   *  added via "Add myself as a skater"; an edit never changes it. */
+  is_account_holder: boolean;
   created_at: string;
   updated_at: string;
 };

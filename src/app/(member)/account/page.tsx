@@ -82,6 +82,7 @@ export default async function AccountPage({
           <HouseholdManager
             initialParticipants={household}
             initialUnsignedIds={unsignedParticipantIds}
+            accountName={authed.account.name}
           />
         </div>
       </section>

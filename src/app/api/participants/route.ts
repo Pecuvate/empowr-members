@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server";
 import { getAuthedAccount } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
-import { participantSchema } from "@/lib/validation";
+import { participantCreateSchema } from "@/lib/validation";
 import { syncBrevoForAccount } from "@/lib/brevo";
 
 export async function POST(request: Request) {
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const parsed = participantSchema.safeParse(
+  const parsed = participantCreateSchema.safeParse(
     await request.json().catch(() => null)
   );
   if (!parsed.success) {
@@ -31,6 +31,16 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
+    // The partial unique index allows one is_account_holder row per account.
+    // Reaching it means the screen offered "Add myself" when a self row
+    // already existed — two tabs, a stale page, or a direct POST — so say so
+    // rather than reporting a generic failure.
+    if (error.code === "23505") {
+      return NextResponse.json(
+        { error: "You're already in your household as a skater." },
+        { status: 409 }
+      );
+    }
     console.error("participant insert failed", error);
     return NextResponse.json(
       { error: "Could not add the participant — please try again." },
