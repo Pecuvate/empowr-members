@@ -1,5 +1,18 @@
 # Empowr Members
 
+> **This repository is PUBLIC** (`PecuvateOrg/empowr-members`).
+>
+> **Devlog and memory location:** `../workspace-docs/empowr-members/`
+>
+> `DEVLOG.md` and `memory.md` are **not** kept in this repo — they hold operational
+> detail that must not be world-readable. Write session entries to the path above,
+> in the private Empowr CIC hub. Both filenames are gitignored here, so a copy created
+> in this directory is silently never committed.
+>
+> Never put live identifiers, unremediated security findings, or commercial state
+> in any file tracked here. See `../CONTEXT.md` and
+> `_config/guides/public-repo-collaboration.md`.
+
 Membership and session booking platform for Empowr CIC — members book, pay for, and manage sessions and monthly memberships. Replaces the legacy Wix booking system.
 
 This file is the map. Workspace detail lives in each CONTEXT.md.

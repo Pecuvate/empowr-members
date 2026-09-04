@@ -28,3 +28,9 @@ src/tsconfig.tsbuildinfo
 # Local safety net for undoing a bad apply, not project history. The
 # rollback-before.json baseline IS tracked.
 ops/auth-templates/rollback-2*.json
+
+# Internal workspace documents — held privately by the Empowr CIC hub.
+# This repo is PUBLIC; these carry operational detail and must never be
+# tracked here. See ../CONTEXT.md and ../workspace-docs/empowr-members/.
+DEVLOG.md
+memory.md
