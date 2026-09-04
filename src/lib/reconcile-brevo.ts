@@ -52,7 +52,13 @@ export async function desiredBrevoMemberships(
   let bookingQuery = service
     .from("mem_bookings")
     .select("account_id, occurrence:mem_occurrences(starts_at, ends_at, offering:mem_offerings(slug, title)), course_run:mem_course_runs(starts_on, ends_on, offering:mem_offerings(slug, title))")
-    .in("status", ["confirmed", "attended"]);
+    .in("status", ["confirmed", "attended"])
+    // PAYG operational lists are for purchases, not every historical row
+    // carrying a confirmed status. Legacy imports, manual/test bookings and
+    // complimentary entries can be confirmed without money changing hands.
+    // Subscriber eligibility is calculated independently below, so excluding
+    // their Â£0 materialised booking rows here does not remove subscribers.
+    .not("stripe_payment_intent_id", "is", null);
   if (accountIds?.length) bookingQuery = bookingQuery.in("account_id", accountIds);
   const { data: bookings, error: bookingError } = await bookingQuery;
   if (bookingError) throw bookingError;
