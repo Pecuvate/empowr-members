@@ -4,7 +4,7 @@ Execution plan for Phase 0. Scope defined in [spec](../../spec/CONTEXT.md); data
 
 **Phase 0 is done when:** the `mem_` schema is live in Supabase with RLS verified, a test signup creates a `mem_accounts` row, brand assets are in place, and the holding page is live at https://members.empowrcic.org over SSL.
 
-Already complete: MWP scaffold, GitHub repo (Pecuvate/empowr-members), parent-repo .gitignore, first commits pushed.
+Already complete: MWP scaffold, GitHub repo (`PecuvateOrg/empowr-members`, public), parent-repo .gitignore, first commits pushed.
 
 ---
 
