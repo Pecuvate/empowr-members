@@ -7,6 +7,8 @@ import {
 } from "../../src/lib/brevo.ts";
 import { emailForAccount } from "../../src/lib/reconcile-brevo.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import fs from "node:fs";
+import path from "node:path";
 
 test("maps every supplied session family", () => {
   assert.equal(brevoListKeyForOffering({ title: "Skate Jam" }), "skateJam");
@@ -69,5 +71,13 @@ test("resolves a member account to its Auth user before reading email", async ()
 
   assert.equal(await emailForAccount(service, "account_1"), "member@example.org");
   assert.deepEqual(authLookups, ["auth_user_1"]);
+});
+
+test("PAYG backfill requires a Stripe payment reference", () => {
+  const source = fs.readFileSync(
+    path.join(import.meta.dirname, "../../src/lib/reconcile-brevo.ts"),
+    "utf8"
+  );
+  assert.match(source, /\.not\("stripe_payment_intent_id", "is", null\)/);
 });
 
