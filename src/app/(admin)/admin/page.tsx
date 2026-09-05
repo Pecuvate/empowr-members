@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, CalendarClock, MapPin, Package, QrCode, Users } from "lucide-react";
+import { BookOpen, CalendarClock, MapPin, Package, QrCode, TrendingUp, Users } from "lucide-react";
 import { listUpcomingOccurrencesForDashboard } from "@/lib/admin-data";
 import { formatOccurrence } from "@/lib/format";
 
@@ -68,6 +68,20 @@ export default async function AdminDashboardPage() {
           <div>
             <p className="font-extrabold text-black">Venues</p>
             <p className="text-sm text-mid">Where sessions run</p>
+          </div>
+        </Link>
+        <Link
+          href="/admin/analytics"
+          className="flex items-center gap-3 rounded-2xl bg-card p-5 shadow-sm transition-colors hover:bg-blue-pale/40 sm:col-span-2"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-pale">
+            <TrendingUp className="h-5 w-5 text-blue" aria-hidden />
+          </span>
+          <div>
+            <p className="font-extrabold text-black">Analytics</p>
+            <p className="text-sm text-mid">
+              Signups, and how far people get
+            </p>
           </div>
         </Link>
       </div>
